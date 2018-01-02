@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/DataAnalyze">
+        <file>Resources/logo.ico</file>
+        <file alias="mainIcon">Resources/DataAnalysis_00001.png</file>
+    </qresource>
+</RCC>
