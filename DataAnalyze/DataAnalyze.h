@@ -176,7 +176,8 @@ public:
 
 	QLineEdit* m_pEditZSB; //默认的转速 起点 对比 数值
 	QLineEdit* m_pEditZSE; //默认的转速 终点 对比 数值
-
+	QLineEdit* m_pEditZSTB; //时间范围 起点
+	QLineEdit* m_pEditZSTE; //时间范围 终点
 
 	QLineEdit* m_pEditMC; //摩擦转矩Nm
 	MyPoint* m_choosePos[INDEX_MAX]; //鼠标点击图形控件 选取两次x轴点

@@ -102,6 +102,10 @@ DataAnalyze::DataAnalyze(QWidget *parent)
 	QLabel* pLabelMC = new QLabel("摩擦扭矩(Nm):");
 
 	QLabel* pLabelZSBE = new QLabel("转速起点-终点(rpm):");
+	QLabel* pLabelZSTBE = new QLabel("时间起点-终点(s):");
+	m_pEditZSTB = new QLineEdit;
+	m_pEditZSTE = new QLineEdit;
+	
 	m_pEditZSB = new QLineEdit;
 	m_pEditZSE = new QLineEdit;
 
@@ -171,18 +175,23 @@ DataAnalyze::DataAnalyze(QWidget *parent)
 	m_pEditZSB->setFixedHeight(iHeight);
 	m_pEditZSE->setFixedHeight(iHeight);
 	pLabelZSBE->setFixedHeight(iHeight);
+	pLabelZSTBE->setFixedHeight(iHeight);
+	m_pEditZSTB->setFixedHeight(iHeight);
+	m_pEditZSTE->setFixedHeight(iHeight);
 
-	pCombox->setFixedWidth(iWidth);
-	pEdit->setFixedWidth(iWidth);
-	pEditXB->setFixedWidth(iWidth);
-	pEditXE->setFixedWidth(iWidth);
-	pEditMC->setFixedWidth(iWidth);
-	m_avgGLOne->setFixedWidth(iWidth);
-	m_avgGLTwo->setFixedWidth(iWidth);
-	m_pEditZSB->setFixedWidth(iWidth);
-	m_pEditZSE->setFixedWidth(iWidth);
-	pLabelZSBE->setFixedWidth(iWidth);
-
+// 	pCombox->setFixedWidth(iWidth);
+// 	pEdit->setFixedWidth(iWidth);
+// 	pEditXB->setFixedWidth(iWidth);
+// 	pEditXE->setFixedWidth(iWidth);
+// 	pEditMC->setFixedWidth(iWidth);
+// 	m_avgGLOne->setFixedWidth(iWidth);
+// 	m_avgGLTwo->setFixedWidth(iWidth);
+// 	m_pEditZSB->setFixedWidth(iWidth);
+// 	m_pEditZSE->setFixedWidth(iWidth);
+// 	pLabelZSBE->setFixedWidth(iWidth);
+// 	pLabelZSTBE->setFixedWidth(iWidth);
+// 	m_pEditZSTB->setFixedWidth(iWidth);
+// 	m_pEditZSTE->setFixedWidth(iWidth);
 
 	QTableView* pTableOne = new QTableView; //算法1计算的结果 显示
 	QTableView* pTableTwo = new QTableView; //算法2...
@@ -337,17 +346,23 @@ DataAnalyze::DataAnalyze(QWidget *parent)
 	pRightLayout->addWidget(pLabelZSBE, 2, 0);
 	pRightLayout->addWidget(m_pEditZSB, 2, 1);
 	pRightLayout->addWidget(m_pEditZSE, 2, 2);
-	int beinInd = 3;
+	pRightLayout->addWidget(pLabelZSTBE, 3, 0);
+	pRightLayout->addWidget(m_pEditZSTB, 3, 1);
+	pRightLayout->addWidget(m_pEditZSTE, 3, 2);
+	
+	int beinInd = 4;
 	pRightLayout->addWidget(pLabelXB, beinInd, 0);
 	pRightLayout->addWidget(pEditXB, beinInd, 1);
 	pRightLayout->addWidget(pLabelYB, beinInd , 2);
+	pRightLayout->addWidget(pButtonJsZJ, beinInd, 3);
+
 	pRightLayout->addWidget(pLabelXE, ++beinInd, 0);
 	pRightLayout->addWidget(pEditXE, beinInd, 1);
 	pRightLayout->addWidget(pLabelYE, beinInd, 2);
 	pRightLayout->addWidget(pButtonJSOne, beinInd, 3);
 	pRightLayout->addWidget(pLabelMC, ++beinInd, 0);
 	pRightLayout->addWidget(pEditMC, beinInd, 1);
-	pRightLayout->addWidget(pButtonJsZJ, beinInd, 2);
+	
 	pRightLayout->addWidget(pButtonJSTwo, beinInd, 3);
 	
 	pRightLayout->addLayout(pTableLayout,++beinInd,0,1,4);
@@ -590,7 +605,7 @@ void DataAnalyze::on_start2_click(bool checked)
 	}
 	double temp = 0;
 	int num = 0;
-	int maxSize = m_dataY[INDEX_ONE]->size();
+	int maxSize = m_dataY[mainIndex]->size();
 
 
 	if (mainIndex < INDEX_MAX && mainIndex >= 0)
@@ -785,7 +800,13 @@ void DataAnalyze::on_ZsToTime_click(bool checked)
 }
 void DataAnalyze::GetRealXY(double &valX, double &valY,int flag)
 {
-	
+	double timeB = m_pEditZSTB->text().toDouble();
+	double timeE = m_pEditZSTE->text().toDouble();
+	if ( timeE <= 0)
+	{
+		return;
+	}
+
 	double begin = 0;
 	if (0 == flag)
 		begin = m_pEditZSB->text().toDouble();
@@ -827,40 +848,51 @@ void DataAnalyze::GetRealXY(double &valX, double &valY,int flag)
 	{
 		int curIndex = INDEX_TWO; //转速
 								  //算出 真正的位置
-		float xMinBegin = 10000;
-		int xBegin = -1;//数组 坐标
-		double curTimeB = 0;
-		double beginTime = valX; //保存起始 终止 时间
-		
+		float xMinBegin = 10000, xMinEnd = 10000;
+		int xBegin = -1,xEnd = -1;//数组 坐标
+		double curTimeB = 0, curTimeE = 0;
+		double beginTime = timeB; //保存起始 终止 时间
+		double endTime = timeE;
 		for (int index = 0; index < pTime[curIndex]->size(); ++index)
 		{
 			//计算 选择的坐标 起始 与 终点 最近的两个点
 			curTimeB = pTime[curIndex]->at(index) - beginTime;
+			curTimeE = pTime[curIndex]->at(index) - endTime;
 			//计算间距
 			if (curTimeB < 0)
 			{
 				curTimeB = 0 - curTimeB;
 			}
-			
+			if (curTimeE < 0)
+			{
+				curTimeE = 0 - curTimeE;
+			}
 			if (curTimeB < xMinBegin)
 			{
 				xMinBegin = curTimeB;
 				xBegin = index;
 			}
+			if (curTimeE < xMinEnd)
+			{
+				xMinEnd = curTimeE;
+				xEnd = index;
+			}
 		}
 
-		int tempxs = pData[curIndex]->size()/100; //定位系数 中心点 取左右 tempxs 个数据 来进行 定位
+		int tempxs = 0; //定位系数 中心点 取左右 tempxs 个数据 来进行 定位
 		float xMinBeginData = 10000;
 		int xBeginData = -1; //数组 坐标
 		double curDataB = 0;
 		double beginData = begin; //保存起始 终止 时间
-		for (int index = xBegin - tempxs; index < xBegin +tempxs && index <pData[curIndex]->size(); ++index)
+		for (int index = xBegin; index <= xEnd && index <pData[curIndex]->size(); ++index)
 		{
 			if (index < 0) //超出最小范围 时
 			{
 				index = 0;
+				return;
 			}
 			curDataB = beginData - pData[curIndex]->at(index);
+			
 			if (curDataB < 0)
 			{
 				curDataB = 0 - curDataB;
@@ -1250,10 +1282,14 @@ void DataAnalyze::on_js_click_one(bool checked )
 				m_avgGLOne->setText(QString("%1 kg.m²").arg(sumData/(row+1)));
 			}
 		}
+		else
+		{
+			statusBar()->showMessage("数据不完整!", 3000);
+		}
 	}
 	else
 	{
-		statusBar()->showMessage("请选择一个时间段", 3000);
+		statusBar()->showMessage("请选择一个时间段!", 3000);
 	}
 }
 void DataAnalyze::on_js_click_two(bool checked )
