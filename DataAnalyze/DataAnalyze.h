@@ -135,9 +135,11 @@ public Q_SLOTS:
 		void on_ui_showData(WorkerRead* worker, int index);
 		void on_start_click(bool checked = false);
 		void on_start2_click(bool checked = false);
+		void on_ZsToTime_click(bool checked = false);
 		
 
 		//计算惯量值 算法1 算法2
+		void on_js_click_ZJ(bool checked = false);
 		void on_js_click_one(bool checked = false);
 		void on_js_click_two(bool checked = false);
 		void on_dr_click_one(bool checked = false);//导入 算法1 算得平均惯量
@@ -148,16 +150,33 @@ public Q_SLOTS:
 		void table_delete_one(const QModelIndex &);
 		void table_delete_two(const QModelIndex &);
 		void table_delete_avg(const QModelIndex &index);
-private slots:
+
+		/*清除列表*/
+		void on_clear_one(bool checked = false);
+		void on_clear_two(bool checked = false);
+		void on_clear_avg(bool checked = false);
+
+		void table_click_one(const QPoint &pos);
+		void table_click_two(const QPoint &pos);
+		void table_click_avg(const QPoint &pos);
+private :
+	//坐标 x y  flag:0 起点 1 终点
+	void GetRealXY(double &valX, double &valY, int flag);
 public:
+	int m_table_width; //table 列宽
 	QLineEdit*	m_avgGLOne, *m_avgGLTwo,*m_avgGLAll; //平均惯量 算法1 算法2  整个文件平均惯量
 	QStandardItemModel * m_table_modelOne, *m_table_modelTwo, *m_avgTable_model;
 	QTableView* m_table_one, *m_table_two;
+	QMenu* m_menu_one, *m_menu_two, *m_menu_avg; //右键菜单项  tableview
 	QLabel* m_statusLabel; //状态栏
 	QLineEdit* m_pEditXB; //保存 选取的第一个点 
 	QLineEdit* m_pEditXE; //保存 选取的第二个点
 	QLabel*		m_pLabelYB;
 	QLabel* 	m_pLabelYE;
+
+	QLineEdit* m_pEditZSB; //默认的转速 起点 对比 数值
+	QLineEdit* m_pEditZSE; //默认的转速 终点 对比 数值
+
 
 	QLineEdit* m_pEditMC; //摩擦转矩Nm
 	MyPoint* m_choosePos[INDEX_MAX]; //鼠标点击图形控件 选取两次x轴点

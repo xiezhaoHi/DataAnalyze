@@ -7,6 +7,11 @@
 #include <QTextEdit>
 #include <qmath.h>
 
+/*
+data:20180101
+优化,通过 输入 转速起始点 计算 时间起始点
+*/
+
 void DataAnalyze::on_action_open_triggered()
 {
 // 	QString xlsFile = QFileDialog::getOpenFileName(this, QString(), QString(), "excel(*.xls *.xlsx)");
@@ -86,28 +91,39 @@ DataAnalyze::DataAnalyze(QWidget *parent)
 	connect(pButton, &QPushButton::clicked, this, &DataAnalyze::on_start_click);
 	connect(pButton2, &QPushButton::clicked, this, &DataAnalyze::on_start2_click);
 
-
+	//通过输入的转速 计算起始点时间
+	QPushButton* pButtonZsToTime = new QPushButton("转速确定范围");
+	connect(pButtonZsToTime, &QPushButton::clicked, this, &DataAnalyze::on_ZsToTime_click);
 
 	//计算 惯量值
 	QLabel* pLabelChoose = new QLabel;
 	QLabel* pLabelXB = new QLabel("起点X(s):");
 	QLabel* pLabelXE = new QLabel("终点X(s):");
-	QLabel* pLabelMC = new QLabel("摩擦转矩(Nm):");
+	QLabel* pLabelMC = new QLabel("摩擦扭矩(Nm):");
+
+	QLabel* pLabelZSBE = new QLabel("转速起点-终点(rpm):");
+	m_pEditZSB = new QLineEdit;
+	m_pEditZSE = new QLineEdit;
+
+
 
 	QLineEdit* pEditXB = new QLineEdit; //选择x轴 起始位置
 	QLineEdit* pEditXE = new QLineEdit; //选择x轴 终止位置
 	QLabel*	   pLabelYB = new QLabel; //y轴 起始位置
 	QLabel*	   pLabelYE = new QLabel; //y轴 终止位置
-	QLineEdit* pEditMC = new QLineEdit; //摩擦转矩
+	QLineEdit* pEditMC = new QLineEdit; //摩擦扭矩
 	m_pEditXB = pEditXB;
 	m_pEditXE = pEditXE;
 	m_pLabelYB = pLabelYB;
 	m_pLabelYE = pLabelYE;
 	m_pEditMC = pEditMC;
+
+	QPushButton* pButtonJsZJ = new QPushButton("计算摩擦转矩");
 	QPushButton* pButtonJSOne = new QPushButton("算法1(功率加转速计算)");
 	QPushButton* pButtonJSTwo = new QPushButton("算法2(扭矩加转速计算)");
 	connect(pButtonJSOne, &QPushButton::clicked, this, &DataAnalyze::on_js_click_one);
 	connect(pButtonJSTwo, &QPushButton::clicked, this, &DataAnalyze::on_js_click_two);
+	connect(pButtonJsZJ, &QPushButton::clicked, this, &DataAnalyze::on_js_click_ZJ);
 
 	//计算平均惯量
 	m_avgGLOne = new QLineEdit;
@@ -138,6 +154,7 @@ DataAnalyze::DataAnalyze(QWidget *parent)
 	pEditXE->setFixedHeight(iHeight);
 	pButtonJSOne->setFixedHeight(iHeight);
 	pButtonJSTwo->setFixedHeight(iHeight);
+	pButtonJsZJ->setFixedHeight(iHeight);
 	pEditMC->setFixedHeight(iHeight);
 	pLabelYB->setFixedHeight(iHeight);
 	pLabelYE->setFixedHeight(iHeight);
@@ -150,6 +167,10 @@ DataAnalyze::DataAnalyze(QWidget *parent)
 	pButtonDrOne->setFixedHeight(iHeight);
 	pButtonDrTwo->setFixedHeight(iHeight);
 	pButtonDcAvg->setFixedHeight(iHeight);
+	pButtonZsToTime->setFixedHeight(iHeight);
+	m_pEditZSB->setFixedHeight(iHeight);
+	m_pEditZSE->setFixedHeight(iHeight);
+	pLabelZSBE->setFixedHeight(iHeight);
 
 	pCombox->setFixedWidth(iWidth);
 	pEdit->setFixedWidth(iWidth);
@@ -158,14 +179,46 @@ DataAnalyze::DataAnalyze(QWidget *parent)
 	pEditMC->setFixedWidth(iWidth);
 	m_avgGLOne->setFixedWidth(iWidth);
 	m_avgGLTwo->setFixedWidth(iWidth);
+	m_pEditZSB->setFixedWidth(iWidth);
+	m_pEditZSE->setFixedWidth(iWidth);
+	pLabelZSBE->setFixedWidth(iWidth);
+
 
 	QTableView* pTableOne = new QTableView; //算法1计算的结果 显示
 	QTableView* pTableTwo = new QTableView; //算法2...
 	QTableView* pAvgTable = new QTableView; //保存平均值
 
+	/*
+	20180103 
+	增加菜单项
+	*/
+	pTableOne->setContextMenuPolicy(Qt::CustomContextMenu);  
+	pTableTwo->setContextMenuPolicy(Qt::CustomContextMenu);
+	pAvgTable->setContextMenuPolicy(Qt::CustomContextMenu);
+	connect(pTableOne, &QTableView::customContextMenuRequested
+		, this, &DataAnalyze::table_click_one);
+	connect(pTableTwo, &QTableView::customContextMenuRequested
+		, this, &DataAnalyze::table_click_two);
+	connect(pAvgTable, &QTableView::customContextMenuRequested
+		, this, &DataAnalyze::table_click_avg);
+	m_menu_one = new QMenu; 
+	m_menu_two = new QMenu;
+	m_menu_avg = new QMenu;
+
+	QAction* actionOne = new QAction("清除", this);
+	QAction* actionTwo = new QAction("清除", this);
+	QAction* actionAvg = new QAction("清除", this);
+	connect(actionOne, &QAction::triggered, this, &DataAnalyze::on_clear_one);
+	connect(actionTwo, &QAction::triggered, this, &DataAnalyze::on_clear_two);
+	connect(actionAvg, &QAction::triggered, this, &DataAnalyze::on_clear_avg);
+	m_menu_one->addAction(actionOne);
+	m_menu_two->addAction(actionTwo);
+	m_menu_avg->addAction(actionAvg);
+
 	m_table_one = pTableOne;
 	m_table_two = pTableTwo;
 	int tabelWidth = 150;
+	m_table_width = tabelWidth;
 	m_table_modelOne = new QStandardItemModel();
 	m_table_modelTwo = new QStandardItemModel();
 	m_avgTable_model = new QStandardItemModel;
@@ -273,38 +326,42 @@ DataAnalyze::DataAnalyze(QWidget *parent)
 	
 
 	QGridLayout* pRightLayout = new QGridLayout;
+	
 	pRightLayout->addWidget(pLabelST, 0, 0);
 	pRightLayout->addWidget(pCombox, 0, 1);
 	pRightLayout->addWidget(pLabel,1,0);
 	pRightLayout->addWidget(pEdit,1,1);
 	pRightLayout->addWidget(pButton,0,3);
 	pRightLayout->addWidget(pButton2, 1, 3);
-
+	//pRightLayout->addWidget(pButtonZsToTime, 2, 3);
+	pRightLayout->addWidget(pLabelZSBE, 2, 0);
+	pRightLayout->addWidget(m_pEditZSB, 2, 1);
+	pRightLayout->addWidget(m_pEditZSE, 2, 2);
+	int beinInd = 3;
+	pRightLayout->addWidget(pLabelXB, beinInd, 0);
+	pRightLayout->addWidget(pEditXB, beinInd, 1);
+	pRightLayout->addWidget(pLabelYB, beinInd , 2);
+	pRightLayout->addWidget(pLabelXE, ++beinInd, 0);
+	pRightLayout->addWidget(pEditXE, beinInd, 1);
+	pRightLayout->addWidget(pLabelYE, beinInd, 2);
+	pRightLayout->addWidget(pButtonJSOne, beinInd, 3);
+	pRightLayout->addWidget(pLabelMC, ++beinInd, 0);
+	pRightLayout->addWidget(pEditMC, beinInd, 1);
+	pRightLayout->addWidget(pButtonJsZJ, beinInd, 2);
+	pRightLayout->addWidget(pButtonJSTwo, beinInd, 3);
 	
-		
-	pRightLayout->addWidget(pLabelXB, 2, 0);
-	pRightLayout->addWidget(pEditXB, 2, 1);
-	pRightLayout->addWidget(pLabelYB, 2, 2);
-	pRightLayout->addWidget(pLabelXE, 3, 0);
-	pRightLayout->addWidget(pEditXE, 3, 1);
-	pRightLayout->addWidget(pLabelYE, 3, 2);
-	pRightLayout->addWidget(pLabelMC, 4, 0);
-	pRightLayout->addWidget(pEditMC, 4, 1);
-
-	pRightLayout->addWidget(pButtonJSOne, 3, 3);
-	pRightLayout->addWidget(pButtonJSTwo, 4, 3);
-
-	pRightLayout->addLayout(pTableLayout,5,0,1,4);
-	pRightLayout->addWidget(pAvgGLOne,6, 0 );
-	pRightLayout->addWidget(m_avgGLOne, 6, 1);
-	pRightLayout->addWidget(pAvgGLTwo, 6, 2);
-	pRightLayout->addWidget(m_avgGLTwo, 6, 3);
-	pRightLayout->addWidget(pButtonDrOne, 8, 2);
-	pRightLayout->addWidget(pButtonDrTwo, 8, 3);
-	pRightLayout->addWidget(pAvgGLAll, 9, 2);
-	pRightLayout->addWidget(m_avgGLAll, 9, 3);
-	pRightLayout->addWidget(pButtonDcAvg, 10, 3);
-	pRightLayout->addWidget(pAvgTable, 7,0,5,2);
+	pRightLayout->addLayout(pTableLayout,++beinInd,0,1,4);
+	pRightLayout->addWidget(pAvgGLOne, ++beinInd, 0 );
+	pRightLayout->addWidget(m_avgGLOne, beinInd, 1);
+	pRightLayout->addWidget(pAvgGLTwo, beinInd, 2);
+	pRightLayout->addWidget(m_avgGLTwo, beinInd, 3);
+	pRightLayout->addWidget(pAvgTable, ++beinInd, 0, 5, 2);
+	pRightLayout->addWidget(pButtonDrOne, ++beinInd, 2);
+	pRightLayout->addWidget(pButtonDrTwo, beinInd, 3);
+	pRightLayout->addWidget(pAvgGLAll, ++beinInd, 2);
+	pRightLayout->addWidget(m_avgGLAll, beinInd, 3);
+	pRightLayout->addWidget(pButtonDcAvg, ++beinInd, 3);
+	
 
 	
 	pRightLayout->addWidget(pAvgGLAll);
@@ -362,6 +419,7 @@ DataAnalyze::DataAnalyze(QWidget *parent)
 	statusBar()->setSizeGripEnabled(false); //设置是否显示右边的大小控制点
 	statusBar()->addWidget(m_statusLabel);
 	//statusBar()->showMessage("", 3000); // 显示临时信息，时间3秒钟.
+
 	setWindowState(Qt::WindowMaximized);
 }
 
@@ -646,6 +704,179 @@ void DataAnalyze::on_start_click(bool checked )
 	}
 	
 }
+
+/*通过转速计算起始时间*/
+void DataAnalyze::on_ZsToTime_click(bool checked)
+{
+	//m_pEditXB  m_pEditXE
+
+	double begin = m_pLabelYB->text().toDouble();
+	double end = m_pLabelYE->text().toDouble();
+	if (begin <= 0 && end <= 0)
+	{
+		statusBar()->showMessage("转速值有误,请输入正确的值!", 3000);
+		return;
+	}
+
+
+	int phIndex = m_flag[INDEX_TWO]; //平滑度 选择不同的缓存
+	QVector<double>** pData = nullptr, **pTime = nullptr;
+	//没有平滑过
+	if (FLAG_ZERO == phIndex)
+	{
+		pTime = m_timeX;
+		pData = m_dataY;
+	}
+	//平滑方式1
+	if (FLAG_ONE == phIndex)
+	{
+		pTime = m_timeX_res;
+		pData = m_dataY_res;
+	}
+	//平滑方式2
+	if (FLAG_TWO == phIndex)
+	{
+		pTime = m_timeX_res2;
+		pData = m_dataY_res2;
+	}
+	
+	//两种数据的 时间对应 才有效
+	if (pTime != nullptr && pData != nullptr &&
+		pTime[INDEX_TWO]->size() == pTime[INDEX_THREE]->size()
+		&& pData[INDEX_THREE]->size() == pData[INDEX_TWO]->size())
+	{
+		int curIndex = INDEX_TWO; //转速
+		//算出 真正的位置
+		float xMinBegin = 10000, xMinEnd = 10000;
+		int xBegin = -1, xEnd = -1;
+		double curTimeB = 0, curTimeE;
+		double beginTime = 0, endTime = 0; //保存起始 终止 时间
+		for (int index = 0; index < pTime[curIndex]->size(); ++index)
+		{
+			//计算 选择的坐标 起始 与 终点 最近的两个点
+			curTimeB = pData[curIndex]->at(index) - begin;
+			curTimeE = pData[curIndex]->at(index) - end;
+
+			//计算间距
+			if (curTimeB < 0)
+			{
+				curTimeB = 0 - curTimeB;
+			}
+			if (curTimeE < 0)
+			{
+				curTimeE = 0 - curTimeE;
+			}
+			if (curTimeB < xMinBegin)
+			{
+				xMinBegin = curTimeB;
+				xBegin = index;
+				beginTime = pTime[curIndex]->at(index);
+			}
+			if (curTimeE < xMinEnd)
+			{
+				xMinEnd = curTimeE;
+				xEnd = index;
+				endTime = pTime[curIndex]->at(index);
+			}
+		}
+		m_pEditXB->setText(QString("%1").arg(beginTime));
+		m_pEditXE->setText(QString("%1").arg(endTime));
+	}
+}
+void DataAnalyze::GetRealXY(double &valX, double &valY,int flag)
+{
+	
+	double begin = 0;
+	if (0 == flag)
+		begin = m_pEditZSB->text().toDouble();
+	else
+		begin = m_pEditZSE->text().toDouble();
+	if (begin <= 0 )
+	{
+		//statusBar()->showMessage("转速值有误,请输入正确的值!", 3000);
+		return;
+	}
+
+
+	int phIndex = m_flag[INDEX_TWO]; //平滑度 选择不同的缓存
+	QVector<double>** pData = nullptr, **pTime = nullptr;
+	//没有平滑过
+	if (FLAG_ZERO == phIndex)
+	{
+		pTime = m_timeX;
+		pData = m_dataY;
+	}
+	//平滑方式1
+	if (FLAG_ONE == phIndex)
+	{
+		pTime = m_timeX_res;
+		pData = m_dataY_res;
+	}
+	//平滑方式2
+	if (FLAG_TWO == phIndex)
+	{
+		pTime = m_timeX_res2;
+		pData = m_dataY_res2;
+	}
+
+	//两种数据的 时间对应 才有效
+	if (pTime != nullptr && pData != nullptr &&
+		pTime[INDEX_TWO] != nullptr && pData[INDEX_TWO] != nullptr && 
+		pTime[INDEX_TWO]->size() == pData[INDEX_TWO]->size()
+		)
+	{
+		int curIndex = INDEX_TWO; //转速
+								  //算出 真正的位置
+		float xMinBegin = 10000;
+		int xBegin = -1;//数组 坐标
+		double curTimeB = 0;
+		double beginTime = valX; //保存起始 终止 时间
+		
+		for (int index = 0; index < pTime[curIndex]->size(); ++index)
+		{
+			//计算 选择的坐标 起始 与 终点 最近的两个点
+			curTimeB = pTime[curIndex]->at(index) - beginTime;
+			//计算间距
+			if (curTimeB < 0)
+			{
+				curTimeB = 0 - curTimeB;
+			}
+			
+			if (curTimeB < xMinBegin)
+			{
+				xMinBegin = curTimeB;
+				xBegin = index;
+			}
+		}
+
+		int tempxs = pData[curIndex]->size()/100; //定位系数 中心点 取左右 tempxs 个数据 来进行 定位
+		float xMinBeginData = 10000;
+		int xBeginData = -1; //数组 坐标
+		double curDataB = 0;
+		double beginData = begin; //保存起始 终止 时间
+		for (int index = xBegin - tempxs; index < xBegin +tempxs && index <pData[curIndex]->size(); ++index)
+		{
+			if (index < 0) //超出最小范围 时
+			{
+				index = 0;
+			}
+			curDataB = beginData - pData[curIndex]->at(index);
+			if (curDataB < 0)
+			{
+				curDataB = 0 - curDataB;
+			}
+			if (curDataB < xMinBeginData)
+			{
+				xMinBeginData = curDataB;
+				xBeginData = index;
+			}
+
+		}
+		//xBegin 选择中心点  
+		valX = pTime[curIndex]->at(xBeginData);
+		valY = pData[curIndex]->at(xBeginData);
+	}
+}
 /*index:001 002 31800 三种类型的数据标识 分别为INDEX_ONE INDEX_TWO INDEX_THREE*/
 void DataAnalyze::on_ui_showData(WorkerRead* worker, int index)
 {
@@ -772,7 +1003,7 @@ bool DataAnalyze::eventFilter(QObject *watched, QEvent *event)
 		if (index != -1)
 		{
 			MyPoint* choosePos = m_choosePos[index];
-			float x_val = -1,y_val = -1; //选择的点
+			double x_val = -1,y_val = -1; //选择的点
 			int chooseIndex = -1; //表示 第几次选择 0 1 2
 								  //获取鼠标坐标点
 			int x_pos = mouseEvent->pos().x();
@@ -781,8 +1012,20 @@ bool DataAnalyze::eventFilter(QObject *watched, QEvent *event)
 			x_val = m_plots[index]->xAxis->pixelToCoord(x_pos);
 			y_val = m_plots[index]->yAxis->pixelToCoord(y_pos);
 			QString strDW = *m_dataDW[index];
+
+			//如果选取的是002 转速图表上的点,  定位 距离 给定 转速 范围 最近的点
+		
+			
+
+
+
 			if (choosePos->m_x == -1) //表示 第一次选取
 			{
+				if (INDEX_TWO == index)
+				{
+					GetRealXY(x_val, y_val, 0);
+				}
+
 				choosePos->m_x = x_val;
 				chooseIndex = CHOOSE_ONE;
 				m_pEditXB->setText(QString("%1").arg(x_val));
@@ -790,6 +1033,11 @@ bool DataAnalyze::eventFilter(QObject *watched, QEvent *event)
 			}
 			else if (choosePos->m_y == -1) //第二次选取点
 			{
+				if (INDEX_TWO == index)
+				{
+					GetRealXY(x_val, y_val, 1);
+				}
+
 				choosePos->m_y = x_val;
 				chooseIndex = CHOOSE_TWO;
 				m_pEditXE->setText(QString("%1").arg(x_val));
@@ -797,6 +1045,11 @@ bool DataAnalyze::eventFilter(QObject *watched, QEvent *event)
 			}
 			else //第三次选取
 			{
+				if (INDEX_TWO == index)
+				{
+					GetRealXY(x_val, y_val, 0);
+				}
+
 				//重置
 				choosePos->m_x = -1;
 				choosePos->m_y = -1;
@@ -807,9 +1060,6 @@ bool DataAnalyze::eventFilter(QObject *watched, QEvent *event)
 				m_pEditXE->setText(QString(""));
 				m_pLabelYE->setText(QString(""));
 			}
-		
-			
-			
 		}
 	}
 	//checkbox 点击事件 处理图形显示
@@ -1147,7 +1397,98 @@ void DataAnalyze::on_js_click_two(bool checked )
 		}
 	}
 }
+void DataAnalyze::on_js_click_ZJ(bool checked)
+{
+	double begin = m_pEditXB->text().toDouble();
+	double end = m_pEditXE->text().toDouble();
+	//int index = m_chooseIndex->currentIndex();
+	if (begin != 0 && end != 0) //数据有效
+	{
+		if (begin > end) //范围从小到大 
+		{
+			double temp = begin;
+			begin = end;
+			end = temp;
+		}
 
+
+		int phIndex = m_flag[INDEX_ONE]; //平滑度 选择不同的缓存
+		QVector<double>** pData = nullptr, **pTime = nullptr;
+		//没有平滑过
+		if (FLAG_ZERO == phIndex)
+		{
+			pTime = m_timeX;
+			pData = m_dataY;
+		}
+		//平滑方式1
+		if (FLAG_ONE == phIndex)
+		{
+			pTime = m_timeX_res;
+			pData = m_dataY_res;
+		}
+		//平滑方式2
+		if (FLAG_TWO == phIndex)
+		{
+			pTime = m_timeX_res2;
+			pData = m_dataY_res2;
+		}
+
+		//两种数据的 时间对应 才有效
+		if (pTime != nullptr && pData != nullptr &&
+			pTime[INDEX_ONE] != nullptr && pData[INDEX_ONE] != nullptr &&
+			pTime[INDEX_ONE]->size()
+			== pData[INDEX_ONE]->size())
+		{
+			int curIndex = INDEX_ONE;
+			//算出 真正的位置
+			float xMinBegin = 10000, xMinEnd = 10000;
+			int xBegin = -1, xEnd = -1;
+			double curTimeB = 0, curTimeE;
+			double beginTime = 0, endTime = 0; //保存起始 终止 时间
+			for (int index = 0; index < pTime[curIndex]->size(); ++index)
+			{
+				//计算 选择的坐标 起始 与 终点 最近的两个点
+				curTimeB = pTime[curIndex]->at(index) - begin;
+				curTimeE = pTime[curIndex]->at(index) - end;
+
+				//计算间距
+				if (curTimeB < 0)
+				{
+					curTimeB = 0 - curTimeB;
+				}
+				if (curTimeE < 0)
+				{
+					curTimeE = 0 - curTimeE;
+				}
+				if (curTimeB < xMinBegin)
+				{
+					xMinBegin = curTimeB;
+					xBegin = index;
+					beginTime = pTime[curIndex]->at(index);
+				}
+				if (curTimeE < xMinEnd)
+				{
+					xMinEnd = curTimeE;
+					xEnd = index;
+					endTime = pTime[curIndex]->at(index);
+				}
+			}
+		
+			double sum = 0;
+			int num = xEnd - xBegin + 1;
+			for (int index = xBegin; index >0 && index < pData[curIndex]->size() && index <= xEnd; ++index)
+			{
+				sum += pData[curIndex]->at(index);
+			}
+			if (num > 0)
+			{
+				m_pEditMC->setText(QString("%1").arg(sum / num));
+			}
+		}
+	}
+	else
+		statusBar()->showMessage("请选择时间段", 3000);
+}
 void DataAnalyze::table_delete_one(const QModelIndex & index)
 {
 	
@@ -1289,7 +1630,7 @@ void DataAnalyze::on_dc_click_two(bool checked)
 		QString strPath = QCoreApplication::applicationDirPath() + "//柴油机功率测试软件V1.0.exe";
 		bool ret = process.startDetached("柴油机功率测试软件V1.0.exe");
 		int err = GetLastError();
-		Sleep(300);
+		Sleep(1000);
 		hwnd = FindWindow(app, appCaption);
 	}
 
@@ -1320,4 +1661,47 @@ void DataAnalyze::on_dc_click_two(bool checked)
 	}
 
 	
+}
+
+
+/*清除列表*/
+void DataAnalyze::on_clear_one(bool checked)
+{
+	m_table_modelOne->clear();
+	m_table_modelOne->setHorizontalHeaderItem(0,
+		new QStandardItem(("惯量_算法1(kg.m²)")));
+	m_table_modelOne->setHorizontalHeaderItem(1,
+		new QStandardItem(("范围(s) (rpm)")));
+	m_table_one->setColumnWidth(0, m_table_width);
+	m_table_one->setColumnWidth(1, m_table_width);
+}
+void DataAnalyze::on_clear_two(bool checked )
+{
+	m_table_modelTwo->clear();
+	m_table_modelTwo->setHorizontalHeaderItem(0,
+		new QStandardItem(("惯量_算法2(kg.m²)")));
+	m_table_modelTwo->setHorizontalHeaderItem(1,
+		new QStandardItem(("范围(s) (rpm)")));
+	m_table_two->setColumnWidth(0, m_table_width);
+	m_table_two->setColumnWidth(1, m_table_width);
+}
+void DataAnalyze::on_clear_avg(bool checked )
+{
+	m_avgTable_model->clear();
+	m_avgTable_model->setHorizontalHeaderItem(0,
+		new QStandardItem(("文件")));
+	m_avgTable_model->setHorizontalHeaderItem(1,
+		new QStandardItem(("惯量(kg.m²)")));
+}
+void DataAnalyze::table_click_one(const QPoint &pos)
+{
+	m_menu_one->exec(QCursor::pos());
+}
+void DataAnalyze::table_click_two(const QPoint &pos)
+{
+	m_menu_two->exec(QCursor::pos());
+}
+void DataAnalyze::table_click_avg(const QPoint &pos)
+{
+	m_menu_avg->exec(QCursor::pos());
 }
