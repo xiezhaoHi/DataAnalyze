@@ -6,7 +6,7 @@
 #include <QTimer>
 #include <QTextEdit>
 #include <qmath.h>
-
+#include <QSettings>
 /*
 data:20180101
 优化,通过 输入 转速起始点 计算 时间起始点
@@ -1669,7 +1669,11 @@ void DataAnalyze::on_dc_click_two(bool checked)
 		Sleep(1000);
 		hwnd = FindWindow(app, appCaption);
 	}
+	QSettings  setting(QCoreApplication::applicationDirPath() + "//DataAnalysis_config.ini", QSettings::IniFormat);
+	int maxWnd = setting.value("findWnd/wnd_max", -1).toInt();
+	Q_ASSERT(maxWnd != -1);
 
+	
 	//查找到窗口
 	if (nullptr != hwnd)
 	{
@@ -1679,20 +1683,43 @@ void DataAnalyze::on_dc_click_two(bool checked)
 			statusBar()->showMessage("无效数据,导出失败", 3000);
 			return;
 		}
-		HWND tempWnd = GetDlgItem(hwnd, 0x13);
-		if (tempWnd != nullptr)
+		HWND pWndTemp = hwnd;
+		int iTemp;
+		for (int index = 0; index < maxWnd; ++index)
 		{
-			tempWnd = GetDlgItem(tempWnd, 0x19);
-			if (tempWnd != nullptr)
+			iTemp = setting.value(QString("findWnd/wnd_%1").arg(index), 0).toInt();
+			if (0 == iTemp)
 			{
-				tempWnd = GetDlgItem(tempWnd, 0x1A);
-				if (tempWnd !=nullptr)
-				{
-					SendMessage(tempWnd, WM_SETTEXT, 0
-						, (LPARAM)reinterpret_cast<LPCWSTR>(QString("%1").arg(res).data()));
-				}
+				statusBar()->showMessage("寻找填充窗口失败,配置文件出错!", 3000);
+				return;
+			}
+			pWndTemp = GetDlgItem(pWndTemp, iTemp);
+			if (pWndTemp == nullptr)
+			{
+				statusBar()->showMessage("寻找填充窗口失败,配置的窗口ID无效出错!", 3000);
+				return;
 			}
 		}
+		if (pWndTemp != nullptr)
+		{
+			SendMessage(pWndTemp, WM_SETTEXT, 0
+				, (LPARAM)reinterpret_cast<LPCWSTR>(QString("%1").arg(res).data()));
+		}
+
+// 		HWND tempWnd = GetDlgItem(hwnd, 0x13);
+// 		if (tempWnd != nullptr)
+// 		{
+// 			tempWnd = GetDlgItem(tempWnd, 0x19);
+// 			if (tempWnd != nullptr)
+// 			{
+// 				tempWnd = GetDlgItem(tempWnd, 0x1A);
+// 				if (tempWnd !=nullptr)
+// 				{
+// 					SendMessage(tempWnd, WM_SETTEXT, 0
+// 						, (LPARAM)reinterpret_cast<LPCWSTR>(QString("%1").arg(res).data()));
+// 				}
+// 			}
+// 		}
 
 	}
 
