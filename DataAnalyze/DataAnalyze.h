@@ -13,7 +13,7 @@
 enum enum_index
 {
 	INDEX_ONE , //001 数据
-	INDEX_TWO , //002 数据
+	INDEX_TWO , //002 数据 转速
 	INDEX_THREE, //31800 功率 数据
 	INDEX_MAX
 };
@@ -130,6 +130,11 @@ public Q_SLOTS:
 		//导出功率数据
 		void on_export_three(bool checked = false);
 
+		//help
+		void on_help_one(bool checked = false);
+		void on_help_two(bool checked = false);
+
+
 		void on_run_old(bool checked = false);
 		void on_open_click(bool checked = false);
 		void on_ui_showData(WorkerRead* worker, int index);
@@ -215,6 +220,9 @@ public:
 
 	//标识 0 没有平滑 1 方法1  2标识方法2
 	int m_flag[INDEX_MAX];
+
+	//20180125 新增一个map 获取配置项
+	QMap<int, QString> m_configMap;
 
 	Ui::DataAnalyzeClass ui;
 };

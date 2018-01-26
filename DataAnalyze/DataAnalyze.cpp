@@ -7,10 +7,25 @@
 #include <QTextEdit>
 #include <qmath.h>
 #include <QSettings>
+#include<ActiveQt\QAxwidget>
 /*
 data:20180101
 优化,通过 输入 转速起始点 计算 时间起始点
 */
+
+enum menu_
+{
+	menu_file, //文件
+	menu_tool, //工具
+	menu_export,//输出
+	menu_help,//帮助
+	menu_help_one,//软件使用说明
+	menu_help_two,//关于
+	window_title, //窗口标题
+};
+
+char* menu_name[] = { "文件","工具","输出" ,"帮助" ,"软件使用说明","关于"
+,"柴油机当量转动惯量测试数据分析软件",nullptr};
 
 void DataAnalyze::on_action_open_triggered()
 {
@@ -38,14 +53,16 @@ DataAnalyze::DataAnalyze(QWidget *parent)
 {
 	//ui.setupUi(this);
 
+	setWindowTitle(menu_name[window_title]);
+
 	//打开文件 开始分析
-	QAction*  openAction = new QAction(tr("&Open..."), this);
+	QAction*  openAction = new QAction("打开文件", this);
 	openAction->setShortcuts(QKeySequence::Open);
 	openAction->setStatusTip(tr("Open an existing file"));
 	connect(openAction, &QAction::triggered, this, &DataAnalyze::on_open_click);
 
 	//启动旧的外部程序
-	QAction*  runAction = new QAction(("Run Old DataAnalyze"), this);
+	QAction*  runAction = new QAction(("原数据分析软件"), this);
 	runAction->setStatusTip(tr("Run an exe!"));
 	connect(runAction, &QAction::triggered, this, &DataAnalyze::on_run_old);
 
@@ -66,12 +83,25 @@ DataAnalyze::DataAnalyze(QWidget *parent)
 	connect(exportThree, &QAction::triggered, this, &DataAnalyze::on_export_three);
 
 
-	menuBar()->addMenu(tr("&File"))->addAction(openAction);
-	menuBar()->addMenu("&Run...")->addAction(runAction);
-	QMenu* exportM =menuBar()->addMenu("&export...");
+	//帮助
+	QAction*  helpActionOne = new QAction(menu_name[menu_help_one], this);
+	helpActionOne->setStatusTip(("how to use!"));
+	connect(helpActionOne, &QAction::triggered, this, &DataAnalyze::on_help_one);
+
+	QAction*  helpActionTwo = new QAction(menu_name[menu_help_two], this);
+	helpActionTwo->setStatusTip(("about!"));
+	connect(helpActionTwo, &QAction::triggered, this, &DataAnalyze::on_help_two);
+
+	menuBar()->addMenu(menu_name[menu_file])->addAction(openAction);
+	menuBar()->addMenu(menu_name[menu_tool])->addAction(runAction);
+	QMenu* exportM =menuBar()->addMenu(menu_name[menu_export]);
 	exportM->addAction(exportOne);
 	exportM->addAction(exportTwo);
 	exportM->addAction(exportThree);
+
+	QMenu* helpM = menuBar()->addMenu(menu_name[menu_help]);
+	helpM->addAction(helpActionOne);
+	helpM->addAction(helpActionTwo);
 
 	QLabel* pLabelST = new QLabel("选择图:");
 	QComboBox* pCombox = new QComboBox;
@@ -86,8 +116,8 @@ DataAnalyze::DataAnalyze(QWidget *parent)
 	QValidator *validator = new QIntValidator(1, 10000);
 	pEdit->setValidator(validator);
 
-	QPushButton* pButton = new QPushButton("开始平滑_方式1");
-	QPushButton* pButton2 = new QPushButton("开始平滑_方式2");
+	QPushButton* pButton = new QPushButton("开始平滑_方法1");
+	QPushButton* pButton2 = new QPushButton("开始平滑_方法2");
 	connect(pButton, &QPushButton::clicked, this, &DataAnalyze::on_start_click);
 	connect(pButton2, &QPushButton::clicked, this, &DataAnalyze::on_start2_click);
 
@@ -122,9 +152,9 @@ DataAnalyze::DataAnalyze(QWidget *parent)
 	m_pLabelYE = pLabelYE;
 	m_pEditMC = pEditMC;
 
-	QPushButton* pButtonJsZJ = new QPushButton("计算摩擦转矩");
-	QPushButton* pButtonJSOne = new QPushButton("算法1(功率加转速计算)");
-	QPushButton* pButtonJSTwo = new QPushButton("算法2(扭矩加转速计算)");
+	QPushButton* pButtonJsZJ = new QPushButton("计算摩擦扭矩");
+	QPushButton* pButtonJSOne = new QPushButton("算法1(含摩擦扭矩)");
+	QPushButton* pButtonJSTwo = new QPushButton("算法2(不含摩擦扭矩)");
 	connect(pButtonJSOne, &QPushButton::clicked, this, &DataAnalyze::on_js_click_one);
 	connect(pButtonJSTwo, &QPushButton::clicked, this, &DataAnalyze::on_js_click_two);
 	connect(pButtonJsZJ, &QPushButton::clicked, this, &DataAnalyze::on_js_click_ZJ);
@@ -434,7 +464,7 @@ DataAnalyze::DataAnalyze(QWidget *parent)
 	statusBar()->setSizeGripEnabled(false); //设置是否显示右边的大小控制点
 	statusBar()->addWidget(m_statusLabel);
 	//statusBar()->showMessage("", 3000); // 显示临时信息，时间3秒钟.
-
+	
 	setWindowState(Qt::WindowMaximized);
 }
 
@@ -584,6 +614,127 @@ void DataAnalyze::on_export_three(bool checked)
 
 }
 
+//help
+//软件说明
+void DataAnalyze::on_help_one(bool checked)
+{
+	QDialog dlg;
+	QAxWidget* officeContent_ = new QAxWidget(this);
+	if (!officeContent_->setControl("Adobe PDF Reader"))
+		QMessageBox::critical(this, "Error", "没有安装pdf！");
+	
+	officeContent_->dynamicCall(
+		"LoadFile(const QString&)",
+		QCoreApplication::applicationDirPath() + "//instructions .pdf");
+
+	QGridLayout layout;
+	layout.addWidget(officeContent_);
+	dlg.setLayout(&layout);
+	dlg.setMinimumSize(800, 600);
+	dlg.setWindowIcon(QIcon(":/DataAnalyze/mainIcon"));
+	dlg.setWindowTitle("说明书");
+	Qt::WindowFlags flags = Qt::Dialog;
+	flags |=  Qt::WindowCloseButtonHint ;
+	flags |= Qt::WindowMaximizeButtonHint;
+	flags |= Qt::WindowMinimizeButtonHint;
+	dlg.setWindowFlags(flags);			
+	dlg.exec();
+
+	officeContent_->close();
+	officeContent_->clear();
+	delete officeContent_;
+}
+//关于
+enum configName
+{
+	config_title,
+	config_version,
+	config_desOne,
+	config_desTwo,
+	config_addr,
+	config_phone,
+	config_max
+};
+void DataAnalyze::on_help_two(bool checked)
+{
+
+	QPixmap pix(":/DataAnalyze/guanyu");
+	int w = pix.width();
+	int h = pix.height();
+	QDialog dlg;
+	Qt::WindowFlags flags = Qt::Dialog;
+	flags |= Qt::WindowCloseButtonHint;
+	dlg.setWindowFlags(flags);
+	dlg.setWindowIcon(QIcon(":/DataAnalyze/mainIcon"));
+	dlg.setWindowTitle("关于");
+	dlg.setFixedSize(w, h);
+	QLabel lab(&dlg);
+	lab.setFixedSize(w, h);
+	lab.setPixmap(pix);
+	dlg.exec();
+// 	if (m_configMap.isEmpty())
+// 	{
+// 		QSettings  setting(QCoreApplication::applicationDirPath() + "//DataAnalysis_config.ini", QSettings::IniFormat);
+// 		setting.setIniCodec(QTextCodec::codecForName("UTF-8"));
+// 		QString strTemp;
+// 		for (int index = 0; index < config_max; ++index)
+// 		{
+// 			strTemp = (setting.value(QString("aboutInfo/about_%1").arg(index), "").toString());
+// 			m_configMap[index] = strTemp;
+// 		}
+// 			
+// 	}
+// 
+// 
+// 	QDialog dlg;
+// 	dlg.setWindowIcon(QIcon(":/DataAnalyze/mainIcon"));
+// 	Qt::WindowFlags flags = Qt::Dialog;
+// 	flags |= Qt::WindowCloseButtonHint;
+// 	dlg.setWindowFlags(flags);
+// 	dlg.setWindowTitle("关于");
+// 	dlg.setFixedSize(QSize(500,400));
+// 	dlg.setStyleSheet("background-color:white");
+// 	//
+// 	QLabel title(m_configMap[config_title],&dlg);
+// 	QFont font;
+// 	font.setPixelSize(20);
+// 	font.setBold(true);
+// 	title.setFont(font);
+// 	title.move(75, 10);
+// 
+// 	QLabel log(&dlg);
+// 	log.setPixmap(QPixmap(":/DataAnalyze/about"));
+// 	log.move(215, 40);
+// 
+// 	QPoint logPoint = log.pos();
+// 
+// 	QLabel version(m_configMap[config_version], &dlg);
+// 	version.move(logPoint.x()-10,logPoint.y()+73+10);
+// 	version.setFont(font);
+// 
+// 	logPoint = version.pos();
+// 
+// 	QLabel desOne(m_configMap[config_desOne], &dlg);
+// 	desOne.setFont(font);
+// 	desOne.move(75, logPoint.y() + 30);
+// 
+// 	logPoint = desOne.pos();
+// 	QLabel desTwo(m_configMap[config_desTwo], &dlg);
+// 	desTwo.setFont(font);
+// 	desTwo.move(75+75, logPoint.y() + 30);
+// 
+// 	logPoint = desTwo.pos();
+// 	QLabel addr(m_configMap[config_addr], &dlg);
+// 	addr.setFont(font);
+// 	addr.move(75+25, logPoint.y() + 30);
+// 
+// 	logPoint = addr.pos();
+// 	QLabel phone(m_configMap[config_phone], &dlg);
+// 	phone.setFont(font);
+// 	phone.move(75+95, logPoint.y() + 30);
+// 	
+// 	dlg.exec();
+}
 
 /*平滑操作 算法2*/
 void DataAnalyze::on_start2_click(bool checked)
@@ -1157,9 +1308,10 @@ bool DataAnalyze::eventFilter(QObject *watched, QEvent *event)
 //计算惯量值 算法1 算法2
 void DataAnalyze::on_js_click_one(bool checked )
 {
+	//选取的时间点
 	double begin = m_pEditXB->text().toDouble();
 	double end = m_pEditXE->text().toDouble();
-	//int index = m_chooseIndex->currentIndex();
+	
 	if (begin != 0 && end != 0) //数据有效
 	{
 		if (begin > end) //范围从小到大 
@@ -1301,6 +1453,7 @@ void DataAnalyze::on_js_click_two(bool checked )
 		statusBar()->showMessage("请输入正确的摩擦转矩", 3000);
 		return;
 	}
+	//选取的时间段
 	double begin = m_pEditXB->text().toDouble();
 	double end = m_pEditXE->text().toDouble();
 	//int index = m_chooseIndex->currentIndex();
@@ -1400,6 +1553,7 @@ void DataAnalyze::on_js_click_two(bool checked )
 
 				double  res = ((pData[INDEX_ONE]->at(xBegin)-dbTL)*pData[INDEX_TWO]->at(xBegin)
 					+ (pData[INDEX_ONE]->at(xEnd) - dbTL)*pData[INDEX_TWO]->at(xEnd))/2;
+				//时间段 的转速
 				double zsEnd = pData[INDEX_TWO]->at(xEnd);
 				double zsBegin = pData[INDEX_TWO]->at(xBegin);
 				double zsBegin_show = zsBegin;
@@ -1408,7 +1562,7 @@ void DataAnalyze::on_js_click_two(bool checked )
 				zsEnd = qPow(zsEnd,2);
 				double div = pai*(zsEnd - zsBegin);
 				res = (60*t*(res+sum)) / div;
-				//m_statusLabel->setText(QString("%1").arg(res));
+				
 				int row = m_table_modelTwo->rowCount();
 				m_table_modelTwo->setItem(row, 0
 					, new QStandardItem(QString("%1").arg(res)));
@@ -1433,6 +1587,7 @@ void DataAnalyze::on_js_click_two(bool checked )
 		}
 	}
 }
+
 void DataAnalyze::on_js_click_ZJ(bool checked)
 {
 	double begin = m_pEditXB->text().toDouble();
