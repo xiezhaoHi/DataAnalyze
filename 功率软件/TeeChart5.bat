@@ -1,1 +1,0 @@
-regsvr32 TeeChart5.ocx
